@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Second Hand Market</string>
+    <string name="welcome_message">Buy &amp; Sell Pre-loved Items</string>
+    <string name="login_with_phone">Login with Phone Number</string>
+    <string name="enter_phone_number">Enter your phone number</string>
+    <string name="send_otp">Send OTP</string>
+    <string name="verify_otp">Verify OTP</string>
+    <string name="dashboard_user">User Dashboard</string>
+    <string name="dashboard_vendor">Vendor Dashboard</string>
+    <string name="dashboard_admin">Admin Dashboard</string>
+</resources>
