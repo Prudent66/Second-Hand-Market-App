@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
+    id("io.gitlab.arturbosch.detekt") version "1.23.4"
     kotlin("kapt")
 }
 
@@ -103,4 +104,12 @@ dependencies {
 
 kapt {
     correctErrorTypes = true
+}
+
+detekt {
+    toolVersion = "1.23.4"
+    config = files("../config/detekt/detekt.yml")
+    buildUponDefaultConfig = true
+    allRules = true
+    baseline = file("../config/detekt/baseline.xml")
 }

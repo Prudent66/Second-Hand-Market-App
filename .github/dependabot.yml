@@ -1,0 +1,55 @@
+# Dependabot configuration for automated dependency updates
+version: 2
+updates:
+  # Android Gradle dependencies
+  - package-ecosystem: "gradle"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "android"
+      - "dependencies"
+    groups:
+      android-dependencies:
+        patterns:
+          - "androidx.*"
+          - "com.google.android.*"
+          - "org.jetbrains.kotlin*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Backend npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "backend"
+      - "dependencies"
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      prod-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "github-actions"
+      - "dependencies"

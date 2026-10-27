@@ -1,0 +1,196 @@
+# Detekt configuration for Second Hand Market
+# See https://detekt.github.io/detekt/configuration/
+
+build:
+  maxIssues: 100
+  weights:
+    # Complexity metrics weights
+    complexity: 2
+    LongParameterList: 1
+    NestedBlockDepth: 1
+    TooManyFunctions: 1
+
+  # Exclude generated files and test files
+  excludes:
+    - '**/build/**'
+    - '**/generated/**'
+    - '**/test/**'
+    - '**/androidTest/**'
+    - '**/test/**/*.kt'
+    - '**/androidTest/**/*.kt'
+
+# Formatting rules
+formatting:
+  FinalNewline:
+    active: true
+  ImportOrdering:
+    active: true
+  MaximumLineLength:
+    active: true
+    maxLineLength: 120
+    excludePackageStatements: true
+  NoConsecutiveBlankLines:
+    active: true
+  NoMultipleSpaces:
+    active: true
+  NoTrailingSpaces:
+    active: true
+  NoWildcardImports:
+    active: true
+  UseTrailingComma:
+    active: true
+    exceptions:
+      - call-site
+      - definition-site
+
+# Naming rules
+naming:
+  MatchingDeclarationName:
+    active: true
+  MemberNameEqualsClassName:
+    active: true
+  NoNameShadowing:
+    active: true
+  TopLevelPropertyNamePattern:
+    active: true
+    pattern: '^[a-z][A-Za-z0-9]*$'
+
+# Style rules
+style:
+  MagicNumber:
+    active: true
+    ignoreNumbers: '-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 1000'
+    ignorePropertyDeclaration: true
+    ignoreLocalVariableDeclaration: true
+    ignoreConstantDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+  ReturnCount:
+    active: true
+    max: 5
+    excludedFunctions: 'equals,hashCode,toString,describeContents,writeToParcel'
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 15
+    thresholdInClasses: 15
+    thresholdInInterfaces: 10
+    thresholdInEnums: 10
+    thresholdInObjects: 10
+  WildcardImport:
+    active: true
+    excludes: ['java.util.*', 'kotlinx.coroutines.*']
+
+# Complexity rules
+complexity:
+  ComplexCondition:
+    active: true
+    threshold: 4
+  ComplexInterface:
+    active: true
+    threshold: 10
+  ComplexMethod:
+    active: true
+    threshold: 15
+    ignoreSimpleWhenEntries: true
+    ignoreSingleWhenExpression: true
+    ignoreFunctionLiterals: false
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    threshold: 6
+    ignoreDefaultValues: true
+    ignoreDataClasses: true
+    ignoreAnnotated: ['Suppress("LONG_PARAMETER_LIST")']
+  NestedBlockDepth:
+    active: true
+    threshold: 4
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 15
+    thresholdInClasses: 15
+    thresholdInInterfaces: 10
+    thresholdInEnums: 10
+    thresholdInObjects: 10
+
+# Exception rules
+exceptions:
+  NotImplementedDeclaration:
+    active: true
+  TooGenericExceptionCaught:
+    active: true
+    allowed: ['Exception', 'Throwable']
+  ThrowingExceptionFromFinally:
+    active: true
+  ThrowingExceptionsWithoutMessageOrCause:
+    active: true
+    allowed: ['Exception', 'RuntimeException', 'IllegalStateException', 'IllegalArgumentException']
+
+# Potential bugs rules
+potential-bugs:
+  CastToNullableType:
+    active: true
+  CoroutinesGlobalScopeUsage:
+    active: true
+  EmptyCatchBlock:
+    active: true
+    allowedExceptionNameRegex: '^(_|ignore).*'
+  EmptyDoWhileBlock:
+    active: true
+  EmptyElseBlock:
+    active: true
+  EmptyFinallyBlock:
+    active: true
+  EmptyIfBlock:
+    active: true
+  EmptyTryBlock:
+    active: true
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
+  EqualsWithHashCodeExist:
+    active: true
+  ExplicitGarbageCollectionCall:
+    active: true
+  HashCodeOverride:
+    active: true
+  IllegalHashCodeOverride:
+    active: true
+  InstanceOfCheckForException:
+    active: true
+  IteratorHasNext:
+    active: true
+  LateinitUsage:
+    active: true
+  NullSafeEquals:
+    active: true
+  ReturnFromFinally:
+    active: true
+  ReturningNullFromFunctionWithNonNullableReturnType:
+    active: true
+  SpCastShouldBeSafeCall:
+    active: true
+  SpConditionRecommended:
+    active: true
+  SpNegativeCondition:
+    active: true
+  SpSafeCallWithNotNullCheck:
+    active: true
+  SpSpreadOperator:
+    active: true
+  StringLiteralEquality:
+    active: true
+  UnreachableCode:
+    active: true
+  UnsafeCallOnNullableType:
+    active: true
+  UnsafeCast:
+    active: true
+  UselessPostfixExpression:
+    active: true
+  UselessPrefixExpression:
+    active: true
+  WrongEqualsTypeParameter:
+    active: true
