@@ -140,10 +140,11 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isUploadingItem = true, error = null) }
             try {
+                val trimmedTitle = title.trim()
                 productRepository.createProduct(
                     vendorId = VENDOR_ID,
-                    title = title,
-                    description = description,
+                    title = trimmedTitle,
+                    description = description.trim(),
                     price = price,
                     imageUrl = "",
                     category = category,
@@ -152,7 +153,7 @@ class DashboardViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isUploadingItem = false,
-                        uiMessage = "\"$title\" is now live"
+                        uiMessage = "\"$trimmedTitle\" is now live"
                     )
                 }
                 loadProducts()
@@ -179,7 +180,7 @@ class DashboardViewModel @Inject constructor(
                         orders = state.orders.map { order ->
                             if (order.id == orderId) order.copy(paymentStatus = next) else order
                         },
-                        uiMessage = "Order ${orderDisplayId(orderId)} → ${statusLabel(next)}"
+                        uiMessage = "Order ${orderDisplayId(orderId)} marked as ${statusLabel(next)}"
                     )
                 }
             } catch (e: Exception) {

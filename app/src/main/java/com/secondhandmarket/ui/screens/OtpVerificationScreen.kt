@@ -131,9 +131,10 @@ fun OtpVerificationScreen(
                 }
             }) {
                 Text(
-                    text = "Demo mode (no SMS) — tap to use $mockOtp",
+                    text = "Demo mode (no SMS): tap to use $mockOtp",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
             }

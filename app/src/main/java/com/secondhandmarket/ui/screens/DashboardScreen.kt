@@ -1,7 +1,9 @@
 package com.secondhandmarket.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -24,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -40,7 +43,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -53,6 +55,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
@@ -70,10 +74,10 @@ import com.secondhandmarket.viewmodel.DASHBOARD_CATEGORIES
 import com.secondhandmarket.viewmodel.DashboardViewModel
 
 /**
- * Dashboard with a User Mode / Vendor Mode toggle in the top bar.
+ * Dashboard with a Shopping / Selling segmented pill below the app bar.
  *
- * - User Mode: search bar, category chips and a product grid.
- * - Vendor Mode: upload item, bank (payout) details and an orders list where
+ * - Shopping: search bar, category chips and a two-column product grid.
+ * - Selling: upload item, bank (payout) details and an orders list where
  *   each order card cycles Awaiting Transfer -> Payment Received -> Delivered.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,98 +96,142 @@ fun DashboardScreen(
         }
     }
 
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
-        topBar = {
-            DashboardTopBar(
-                isVendorMode = uiState.isVendorMode,
-                onModeChanged = viewModel::onModeChanged
-            )
-        },
+        topBar = { DashboardTopBar() },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            ModeSwitchBar(
+                isVendorMode = uiState.isVendorMode,
+                onModeChanged = viewModel::onModeChanged
+            )
             if (uiState.isVendorMode) {
                 VendorModeContent(
                     viewModel = viewModel,
+                    modifier = Modifier.weight(1f),
                     onUploadClick = { showUploadDialog = true }
                 )
             } else {
-                UserModeContent(viewModel = viewModel)
-            }
-
-            if (showUploadDialog) {
-                UploadItemDialog(
-                    isUploading = uiState.isUploadingItem,
-                    onDismiss = { showUploadDialog = false },
-                    onConfirm = { title, description, price, category ->
-                        viewModel.uploadItem(title, description, price, category)
-                        showUploadDialog = false
-                    }
+                UserModeContent(
+                    viewModel = viewModel,
+                    modifier = Modifier.weight(1f)
                 )
             }
+        }
+
+        if (showUploadDialog) {
+            UploadItemDialog(
+                isUploading = uiState.isUploadingItem,
+                onDismiss = { showUploadDialog = false },
+                onConfirm = { title, description, price, category ->
+                    viewModel.uploadItem(title, description, price, category)
+                    showUploadDialog = false
+                }
+            )
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DashboardTopBar(
-    isVendorMode: Boolean,
-    onModeChanged: (Boolean) -> Unit
-) {
+private fun DashboardTopBar() {
     TopAppBar(
         title = {
-            Column {
-                Text(
-                    text = "Second Hand Market",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-                Text(
-                    text = if (isVendorMode) "Vendor Mode" else "User Mode",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        },
-        actions = {
             Text(
-                text = "User Mode",
-                fontSize = 12.sp,
-                color = if (isVendorMode) {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                } else {
-                    MaterialTheme.colorScheme.primary
-                }
-            )
-            Switch(
-                checked = isVendorMode,
-                onCheckedChange = onModeChanged,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-            Text(
-                text = "Vendor Mode",
-                fontSize = 12.sp,
-                color = if (isVendorMode) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                }
+                text = "Second Hand Market",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
             )
         }
     )
+}
+
+/**
+ * Segmented "Shopping / Selling" pill shown under the top bar. Replaces the
+ * cramped mode switch that used to live in the app bar.
+ */
+@Composable
+private fun ModeSwitchBar(
+    isVendorMode: Boolean,
+    onModeChanged: (Boolean) -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Row(modifier = Modifier.padding(4.dp)) {
+            ModeOption(
+                label = "Shopping",
+                selected = !isVendorMode,
+                onClick = { onModeChanged(false) },
+                modifier = Modifier.weight(1f)
+            )
+            ModeOption(
+                label = "Selling",
+                selected = isVendorMode,
+                onClick = { onModeChanged(true) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModeOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    Color.Transparent
+                }
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+    }
 }
 
 // ---------------------------------------------------------------- User Mode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UserModeContent(viewModel: DashboardViewModel) {
+private fun UserModeContent(
+    viewModel: DashboardViewModel,
+    modifier: Modifier = Modifier
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     val filteredProducts = remember(uiState.products, uiState.searchQuery, uiState.selectedCategory) {
@@ -198,8 +246,8 @@ private fun UserModeContent(viewModel: DashboardViewModel) {
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
+            .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
         Spacer(modifier = Modifier.height(12.dp))
@@ -209,7 +257,7 @@ private fun UserModeContent(viewModel: DashboardViewModel) {
             value = uiState.searchQuery,
             onValueChange = viewModel::onSearchQueryChanged,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search laptops, phones, furniture…") },
+            placeholder = { Text("Search laptops, phones, furniture...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
             singleLine = true,
             shape = RoundedCornerShape(12.dp)
@@ -242,9 +290,9 @@ private fun UserModeContent(viewModel: DashboardViewModel) {
                 )
             }
         } else {
-            // Product grid
+            // Two fixed columns so narrow devices (~240dp wide) still get a grid.
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 160.dp),
+                columns = GridCells.Fixed(2),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 16.dp),
@@ -258,56 +306,88 @@ private fun UserModeContent(viewModel: DashboardViewModel) {
     }
 }
 
-/** Solid slate used while a product photo is missing or fails to load. */
-private val ImagePlaceholder = ColorPainter(Color(0xFF0D2A4A))
+/**
+ * Per-category gradients used as artwork when a product has no photo (or the
+ * photo fails to load) - looks intentional instead of a flat colored block.
+ */
+private val CategoryGradients = mapOf(
+    "electronics" to listOf(Color(0xFF123456), Color(0xFF2C6BAE)),
+    "phones" to listOf(Color(0xFF0E3B2E), Color(0xFF2E8B62)),
+    "fashion" to listOf(Color(0xFF3B2145), Color(0xFF7C4591)),
+    "furniture" to listOf(Color(0xFF3E2C17), Color(0xFF8A6430))
+)
+private val FallbackGradient = listOf(Color(0xFF1B2735), Color(0xFF3A506B))
+
+@Composable
+private fun CategoryArt(category: String, modifier: Modifier = Modifier) {
+    val colors = CategoryGradients[category.lowercase()] ?: FallbackGradient
+    Box(
+        modifier = modifier.background(Brush.linearGradient(colors)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = category.take(1).uppercase(),
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White.copy(alpha = 0.25f)
+        )
+    }
+}
 
 @Composable
 private fun ProductCard(product: Product) {
     Card(
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column {
-            AsyncImage(
-                model = product.imageUrl.ifBlank { null },
-                contentDescription = product.title,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
-                contentScale = ContentScale.Crop,
-                error = ImagePlaceholder
-            )
-            Column(modifier = Modifier.padding(10.dp)) {
+                    .aspectRatio(4f / 3f)
+            ) {
+                // Category art sits behind the photo and shows through when
+                // there is no image (or loading fails).
+                CategoryArt(category = product.category, modifier = Modifier.fillMaxSize())
+                AsyncImage(
+                    model = product.imageUrl.ifBlank { null },
+                    contentDescription = product.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = ColorPainter(Color.Transparent)
+                )
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = Color.Black.copy(alpha = 0.55f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = product.condition,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
                 Text(
                     text = product.title,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "₦%,d".format(product.price.toLong()),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Text(
-                            text = product.condition,
-                            fontSize = 10.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "₦%,d".format(product.price.toLong()),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -318,13 +398,14 @@ private fun ProductCard(product: Product) {
 @Composable
 private fun VendorModeContent(
     viewModel: DashboardViewModel,
+    modifier: Modifier = Modifier,
     onUploadClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
+            .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
         Spacer(modifier = Modifier.height(12.dp))
@@ -519,26 +600,42 @@ private fun OrderCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Payment status button - cycles Awaiting Transfer -> Payment Received -> Delivered.
-            Button(
-                onClick = onAdvanceStatus,
-                enabled = nextStatus != null,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = when (order.paymentStatus) {
-                        PaymentStatus.AWAITING_PAYMENT -> Color(0xFFF57C00)
-                        PaymentStatus.PAYMENT_RECEIVED -> Color(0xFF2E7D32)
-                        PaymentStatus.DELIVERED -> Color(0xFF1565C0)
-                    }
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = when (nextStatus) {
-                        null -> "Delivered ✓"
-                        else -> "Mark: ${DashboardViewModel.statusLabel(nextStatus)}"
-                    },
-                    fontWeight = FontWeight.SemiBold
-                )
+            // Payment status action - colored by the status being moved TO.
+            if (nextStatus == null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Order completed",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+            } else {
+                Button(
+                    onClick = onAdvanceStatus,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = when (nextStatus) {
+                            PaymentStatus.PAYMENT_RECEIVED -> Color(0xFF2E7D32)
+                            else -> Color(0xFF1565C0)
+                        }
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Mark as ${DashboardViewModel.statusLabel(nextStatus)}",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }

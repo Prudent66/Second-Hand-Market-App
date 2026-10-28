@@ -122,7 +122,7 @@ fun LandingScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Buy & sell pre-loved items — laptops, furniture, fashion and more.",
+                text = "Buy & sell pre-loved items: laptops, furniture, fashion and more.",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center
