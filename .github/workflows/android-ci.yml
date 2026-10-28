@@ -111,22 +111,16 @@ jobs:
             adb install -r debug-apk/app-debug.apk
             adb shell am start -W -n com.secondhandmarket/.MainActivity || true
             sleep 30
-            PID=$(adb shell pidof com.secondhandmarket | tr -d '\r' || true)
-            echo "APP PID: ${PID:-<not running>}"
-            adb logcat -d > logcat.log || true
+            adb shell ps -A > ps.txt
+            adb logcat -d > logcat.log
+            adb logcat -d -b crash > crash.log
+            echo "===== APP PROCESS CHECK ====="
+            if grep -q secondhandmarket ps.txt; then echo "app process is alive"; else echo "app process is NOT running"; fi
             echo "===== CRASH BUFFER ====="
-            adb logcat -d -b crash || true
+            cat crash.log
             echo "===== FATAL EXCEPTION (main buffer) ====="
-            grep -A 120 "FATAL EXCEPTION" logcat.log || echo "(no FATAL EXCEPTION in main buffer)"
-            if [ -z "$PID" ]; then
-              echo "::error::App process is not running - it crashed on launch"
-              exit 1
-            fi
-            if grep -q "FATAL EXCEPTION" logcat.log; then
-              echo "::error::App crashed with a FATAL EXCEPTION"
-              exit 1
-            fi
-            echo "Smoke test passed: app is running (pid $PID)"
+            grep -A 120 "FATAL EXCEPTION" logcat.log || echo "no FATAL EXCEPTION in main buffer"
+            if grep -q secondhandmarket ps.txt && ! test -s crash.log && ! grep -q "FATAL EXCEPTION" logcat.log; then echo "::notice::Smoke test PASSED - app is running with no crashes"; else echo "::error::Smoke test FAILED - app crashed or process died"; exit 1; fi
 
       - name: Upload logcat
         uses: actions/upload-artifact@v4
