@@ -26,16 +26,13 @@ jobs:
       
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
-        working-directory: ./app
       
       - name: Run Detekt (Static Analysis)
         run: ./gradlew detekt
-        working-directory: ./app
         continue-on-error: true
       
       - name: Run Lint
         run: ./gradlew lintDebug
-        working-directory: ./app
       
       - name: Upload Detekt Report
         uses: actions/upload-artifact@v4
