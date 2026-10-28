@@ -185,6 +185,7 @@ fun StatusBadge(status: PaymentStatus) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadProductDialog(onDismiss: () -> Unit, onSubmit: (String, String, Double, String) -> Unit) {
     var title by remember { mutableStateOf("") }

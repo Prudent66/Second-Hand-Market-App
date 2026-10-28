@@ -1,21 +1,33 @@
 const db = require('../config/db');
 
+const AVAILABLE_STATUSES = ['available', 'reserved', 'sold'];
+
 exports.getProducts = async (req, res) => {
-  const { category, search } = req.query;
-  
+  const { category, search, status } = req.query;
+
   try {
-    let query = 'SELECT p.*, v.business_name, u.full_name as seller_name FROM products p JOIN vendors v ON p.vendor_id = v.id JOIN users u ON v.user_id = u.id WHERE p.status = 'AVAILABLE'';
-    const params = [];
-    
+    let query = `
+      SELECT p.*, u.name AS seller_name, u.phone AS seller_phone
+      FROM products p
+      JOIN users u ON p.vendor_id = u.id
+      WHERE p.status = $1
+    `;
+    const params = [status && AVAILABLE_STATUSES.includes(status) ? status : 'available'];
+    let paramIndex = 2;
+
     if (category) {
-      query += ' AND p.category = $' + (params.push(category));
+      query += ` AND p.category = $${paramIndex}`;
+      params.push(category);
+      paramIndex += 1;
     }
     if (search) {
-      query += ' AND (p.title ILIKE $' + (params.push('%'+search+'%')) + ' OR p.description ILIKE $' + (params.push('%'+search+'%'))) ;
+      query += ` AND (p.title ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex += 1;
     }
-    
+
     query += ' ORDER BY p.created_at DESC';
-    
+
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (error) {
@@ -27,7 +39,12 @@ exports.getProductById = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await db.query(
-      'SELECT p.*, v.bank_account_number, v.bank_name FROM products p JOIN vendors v ON p.vendor_id = v.id WHERE p.id = $1',
+      `SELECT p.*, u.name AS vendor_name, u.phone AS vendor_phone,
+              vd.bank_account_number, vd.bank_name, vd.account_holder_name
+       FROM products p
+       JOIN users u ON p.vendor_id = u.id
+       LEFT JOIN vendor_details vd ON u.id = vd.user_id
+       WHERE p.id = $1`,
       [id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
@@ -38,13 +55,15 @@ exports.getProductById = async (req, res) => {
 };
 
 exports.createProduct = async (req, res) => {
-  const { title, description, price, category, condition, images, locationState, locationLga } = req.body;
-  const vendorId = req.user.vendorId; // Assuming middleware attaches vendorId
-  
+  const { title, description, price, category, condition, imageUrl } = req.body;
+  const vendorId = (req.user && req.user.userId) || (req.user && req.user.vendorId);
+
   try {
     const result = await db.query(
-      'INSERT INTO products (vendor_id, title, description, price, category, condition, images, location_state, location_lga) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [vendorId, title, description, price, category, condition, JSON.stringify(images), locationState, locationLga]
+      `INSERT INTO products (vendor_id, title, description, price, image_url, category, condition)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [vendorId, title, description, price, imageUrl || null, category, condition || 'good']
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {

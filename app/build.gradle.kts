@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("io.gitlab.arturbosch.detekt") version "1.23.4"
-    kotlin("kapt")
+    id("org.jetbrains.kotlin.kapt") version "1.9.20"
 }
 
 android {
@@ -39,7 +39,8 @@ android {
     }
     
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.6"
+        // Compose compiler 1.5.5 matches Kotlin 1.9.20 (1.5.6 requires 1.9.21)
+        kotlinCompilerExtensionVersion = "1.5.5"
     }
     
     compileOptions {
@@ -63,6 +64,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
