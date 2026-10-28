@@ -54,9 +54,13 @@ fun ProfileSetupScreen(
     var lga by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
 
+    // Move on as soon as the profile is saved. Consume the flag right after
+    // so pressing back from the dashboard lands on a fresh setup screen
+    // instead of instantly navigating forward again.
     LaunchedEffect(uiState.isProfileSaved) {
         if (uiState.isProfileSaved) {
             onCompleted()
+            viewModel.consumeProfileSaved()
         }
     }
 

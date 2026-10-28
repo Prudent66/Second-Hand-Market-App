@@ -66,9 +66,12 @@ fun LandingScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     // Navigate to OTP verification as soon as the OTP has been dispatched.
+    // Consume the flag right after so returning here with the back button
+    // shows a fresh landing screen instead of bouncing forward again.
     LaunchedEffect(uiState.isOtpSent) {
         if (uiState.isOtpSent) {
             onOtpSent(uiState.phoneNumber.trim())
+            viewModel.consumeOtpSent()
         }
     }
 
@@ -203,7 +206,7 @@ fun LandingScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "We'll send a 6-digit verification code by SMS.",
+                text = "You'll get a 6-digit code to continue. No server? Demo mode shows it on the next screen.",
                 fontSize = 12.sp,
                 color = Color.White.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center

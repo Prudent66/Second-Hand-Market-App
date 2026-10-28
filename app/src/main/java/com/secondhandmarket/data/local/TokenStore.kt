@@ -39,6 +39,7 @@ class TokenStore @Inject constructor(
         val LGA = stringPreferencesKey("lga")
         val ADDRESS = stringPreferencesKey("address")
         val PROFILE_COMPLETE = booleanPreferencesKey("profile_complete")
+        val DEMO_OTP = stringPreferencesKey("demo_otp")
     }
 
     suspend fun saveAuth(token: String, phoneNumber: String) {
@@ -79,5 +80,21 @@ class TokenStore @Inject constructor(
 
     suspend fun clear() {
         context.authDataStore.edit { it.clear() }
+    }
+
+    /**
+     * Remembers the offline demo OTP so screens with a fresh AuthViewModel
+     * (each nav destination owns its own) can still show it. Cleared as soon
+     * as verification succeeds or a real backend responds.
+     */
+    suspend fun saveDemoOtp(otp: String) {
+        context.authDataStore.edit { it[Keys.DEMO_OTP] = otp }
+    }
+
+    suspend fun demoOtp(): String? =
+        context.authDataStore.data.first()[Keys.DEMO_OTP]
+
+    suspend fun clearDemoOtp() {
+        context.authDataStore.edit { it.remove(Keys.DEMO_OTP) }
     }
 }

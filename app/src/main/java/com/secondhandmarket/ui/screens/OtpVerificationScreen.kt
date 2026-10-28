@@ -91,7 +91,9 @@ fun OtpVerificationScreen(
         }
     }
 
-    // Move on as soon as the code is verified.
+    // Move on as soon as the code is verified. (Verification navigates with
+    // popUpTo(landing, inclusive), which destroys this destination and its
+    // ViewModel, so the flag can never re-trigger on back.)
     LaunchedEffect(uiState.isVerified) {
         if (uiState.isVerified) {
             onVerified()
@@ -119,6 +121,23 @@ fun OtpVerificationScreen(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
         )
+
+        // Demo hint: the backend is offline, so no SMS is actually sent and a
+        // locally generated code is accepted. Tap to autofill the cells.
+        uiState.mockOtp?.let { mockOtp ->
+            TextButton(onClick = {
+                mockOtp.filter { it.isDigit() }.take(OTP_DIGITS).forEachIndexed { index, c ->
+                    cells[index] = c.toString()
+                }
+            }) {
+                Text(
+                    text = "Demo mode (no SMS) — tap to use $mockOtp",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -219,17 +238,6 @@ fun OtpVerificationScreen(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-        }
-
-        // Demo hint when the backend is unreachable and a mock OTP is used.
-        uiState.mockOtp?.let { mockOtp ->
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Demo mode — use OTP $mockOtp",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.tertiary,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }

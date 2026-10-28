@@ -37,6 +37,18 @@ class AuthViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    init {
+        // Each nav destination owns its own AuthViewModel instance, so the demo
+        // OTP generated on the landing screen would otherwise be invisible here.
+        // Surface the persisted offline code on fresh instances too.
+        viewModelScope.launch {
+            val stored = authRepository.storedDemoOtp() ?: return@launch
+            _uiState.update { state ->
+                if (state.mockOtp == null) state.copy(mockOtp = stored) else state
+            }
+        }
+    }
+
     fun onPhoneNumberChanged(value: String) {
         _uiState.update { it.copy(phoneNumber = value, error = null) }
     }
@@ -113,6 +125,20 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    /**
+     * Clears the one-shot otp-sent flag once navigation has consumed it, so
+     * that pressing back to the landing screen doesn't instantly navigate
+     * forward again (the landing ViewModel survives on the back stack).
+     */
+    fun consumeOtpSent() {
+        _uiState.update { it.copy(isOtpSent = false) }
+    }
+
+    /** Same one-shot reset for the profile-setup screen. */
+    fun consumeProfileSaved() {
+        _uiState.update { it.copy(isProfileSaved = false) }
     }
 
     companion object {

@@ -47,12 +47,15 @@ class AuthRepository @Inject constructor(
             val response = apiService.register(RegisterRequest(phoneNumber = phoneNumber))
             val body = response.body()
             if (response.isSuccessful && body != null && body.success) {
+                // A real backend answered - any persisted demo code is obsolete.
+                tokenStore.clearDemoOtp()
                 RegisterResult.Success(mockOtp = body.mockOtp, isMock = false)
             } else {
                 RegisterResult.Failure(body?.message ?: "Failed to send OTP (${response.code()})")
             }
         } catch (e: IOException) {
             // Backend unreachable - demo fallback so the flow can continue.
+            tokenStore.saveDemoOtp(MOCK_OTP)
             RegisterResult.Success(mockOtp = MOCK_OTP, isMock = true)
         } catch (e: Exception) {
             RegisterResult.Failure(e.message ?: "Unknown error occurred")
@@ -68,6 +71,7 @@ class AuthRepository @Inject constructor(
             val token = body?.token
             if (response.isSuccessful && body != null && token != null) {
                 tokenStore.saveAuth(token = token, phoneNumber = phoneNumber)
+                tokenStore.clearDemoOtp()
                 VerifyResult.Success(token = token, isMock = false)
             } else {
                 VerifyResult.Failure("Invalid OTP code")
@@ -77,9 +81,12 @@ class AuthRepository @Inject constructor(
                 // Demo fallback: accept the well-known mock OTP without a server.
                 val mockToken = "$MOCK_TOKEN_PREFIX${UUID.randomUUID()}"
                 tokenStore.saveAuth(token = mockToken, phoneNumber = phoneNumber)
+                tokenStore.clearDemoOtp()
                 VerifyResult.Success(token = mockToken, isMock = true)
             } else {
-                VerifyResult.Failure("Cannot reach the server. Please try again.")
+                VerifyResult.Failure(
+                    "Cannot reach the server. Demo mode code is $MOCK_OTP."
+                )
             }
         } catch (e: Exception) {
             VerifyResult.Failure(e.message ?: "Verification failed")
@@ -133,4 +140,7 @@ class AuthRepository @Inject constructor(
         /** Prefix used to recognise locally issued demo tokens. */
         const val MOCK_TOKEN_PREFIX = "mock-token-"
     }
+
+    /** Demo OTP persisted by register() when the backend was unreachable. */
+    suspend fun storedDemoOtp(): String? = tokenStore.demoOtp()
 }
