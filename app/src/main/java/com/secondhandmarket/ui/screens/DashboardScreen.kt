@@ -54,8 +54,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.secondhandmarket.R
 import com.secondhandmarket.data.models.Order
 import com.secondhandmarket.data.models.PaymentStatus
 import com.secondhandmarket.data.models.Product
@@ -259,6 +258,9 @@ private fun UserModeContent(viewModel: DashboardViewModel) {
     }
 }
 
+/** Solid slate used while a product photo is missing or fails to load. */
+private val ImagePlaceholder = ColorPainter(Color(0xFF0D2A4A))
+
 @Composable
 private fun ProductCard(product: Product) {
     Card(
@@ -273,7 +275,7 @@ private fun ProductCard(product: Product) {
                     .fillMaxWidth()
                     .height(120.dp),
                 contentScale = ContentScale.Crop,
-                error = painterResource(id = R.drawable.bg_placeholder)
+                error = ImagePlaceholder
             )
             Column(modifier = Modifier.padding(10.dp)) {
                 Text(

@@ -30,8 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,12 +40,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.secondhandmarket.R
 import com.secondhandmarket.viewmodel.AuthViewModel
 
 // Placeholder photo of people trading second-hand items (laptop/furniture swap).
 private const val LANDING_BACKGROUND_URL =
     "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80"
+
+/**
+ * Solid dark blue used while the background photo loads (and if it fails).
+ * Note: painterResource() cannot be used here - bg_placeholder.xml is a
+ * <shape> drawable and painterResource only supports vectors/rasters.
+ */
+private val BackgroundPlaceholder = ColorPainter(Color(0xFF0D2A4A))
 
 /**
  * Landing screen: full-bleed photo of a second-hand market with a dark
@@ -74,8 +80,8 @@ fun LandingScreen(
             contentDescription = "People trading second-hand items",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
-            placeholder = painterResource(id = R.drawable.bg_placeholder),
-            error = painterResource(id = R.drawable.bg_placeholder)
+            placeholder = BackgroundPlaceholder,
+            error = BackgroundPlaceholder
         )
 
         // Semi-transparent black gradient for text readability.
