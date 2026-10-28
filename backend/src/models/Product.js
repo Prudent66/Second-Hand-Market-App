@@ -105,9 +105,9 @@ class Product {
       }
     }
 
-    if (setClause.length === 0) return null;
+    if (setClause.length === 0) {return null;}
 
-    setClause.push(`updated_at = CURRENT_TIMESTAMP`);
+    setClause.push('updated_at = CURRENT_TIMESTAMP');
     values.push(id, vendorId);
 
     const query = `

@@ -27,7 +27,7 @@ function isValidPhoneNumber(phoneNumber) {
 }
 
 function toPublicUser(user) {
-  if (!user) return null;
+  if (!user) {return null;}
   return {
     id: user.id,
     phoneNumber: user.phone || user.phone_number,

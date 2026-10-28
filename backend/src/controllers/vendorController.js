@@ -7,7 +7,7 @@ exports.registerAsVendor = async (req, res) => {
   try {
     // Check if already a vendor
     const existing = await db.query('SELECT * FROM vendors WHERE user_id = $1', [userId]);
-    if (existing.rows.length > 0) return res.status(400).json({ error: 'Already registered as vendor' });
+    if (existing.rows.length > 0) {return res.status(400).json({ error: 'Already registered as vendor' });}
 
     // Update user flag
     await db.query('UPDATE users SET is_vendor = TRUE WHERE id = $1', [userId]);
@@ -28,7 +28,7 @@ exports.getVendorDetails = async (req, res) => {
   const userId = req.user.userId;
   try {
     const result = await db.query('SELECT * FROM vendors WHERE user_id = $1', [userId]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Vendor profile not found' });
+    if (result.rows.length === 0) {return res.status(404).json({ error: 'Vendor profile not found' });}
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });

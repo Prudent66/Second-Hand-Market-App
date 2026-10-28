@@ -12,7 +12,7 @@ exports.createOrder = async (req, res) => {
       'SELECT * FROM products WHERE id = $1 AND status = $2',
       [productId, 'available']
     );
-    if (productRes.rows.length === 0) return res.status(404).json({ error: 'Product not available' });
+    if (productRes.rows.length === 0) {return res.status(404).json({ error: 'Product not available' });}
 
     const product = productRes.rows[0];
 
@@ -45,7 +45,7 @@ exports.updatePaymentStatus = async (req, res) => {
   try {
     // Verify ownership
     const orderCheck = await db.query('SELECT * FROM orders WHERE id = $1 AND vendor_id = $2', [id, vendorId]);
-    if (orderCheck.rows.length === 0) return res.status(403).json({ error: 'Unauthorized' });
+    if (orderCheck.rows.length === 0) {return res.status(403).json({ error: 'Unauthorized' });}
 
     const order = orderCheck.rows[0];
 
