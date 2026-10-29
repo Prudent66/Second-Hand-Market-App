@@ -4,7 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
-    id("io.gitlab.arturbosch.detekt") version "1.23.4"
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
     // kapt ships inside the kotlin-gradle-plugin jar; version comes from the
     // root project's org.jetbrains.kotlin.android declaration.
     id("org.jetbrains.kotlin.kapt")
