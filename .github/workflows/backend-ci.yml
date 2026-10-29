@@ -82,9 +82,10 @@ jobs:
         run: |
           docker run --rm -d \
             -p 5000:5000 \
-            -e JWT_SECRET=dummy_ci_secret \
+            -e JWT_SECRET=ci_docker_test_secret_0123456789 \
             --name test-backend \
             second-hand-market-backend:${{ github.sha }}
           sleep 5
           curl -f http://localhost:5000/ || exit 1
+          curl -f http://localhost:5000/health || exit 1
           docker stop test-backend

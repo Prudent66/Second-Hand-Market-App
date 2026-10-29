@@ -96,6 +96,14 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   const server = app.listen(PORT, () => {
     console.log(`[server] Second Hand Market API listening on port ${PORT}`);
+    // eslint-disable-next-line global-require
+    const { twilioConfigured, isMockMode } = require('./src/services/smsService');
+    const smsMode = twilioConfigured()
+      ? 'twilio (real SMS)'
+      : isMockMode()
+        ? 'mock (OTP returned in API response - do not use for launch)'
+        : 'not configured (register returns 503)';
+    console.log(`[server] OTP delivery mode: ${smsMode}`);
     if (!process.env.DATABASE_URL) {
       console.warn(
         '[server] DATABASE_URL is not set - auth falls back to the in-memory store and catalog endpoints will fail.'
