@@ -2,6 +2,7 @@ package com.secondhandmarket.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.secondhandmarket.data.local.TokenStore
 import com.secondhandmarket.data.models.Order
 import com.secondhandmarket.data.models.PaymentStatus
 import com.secondhandmarket.data.models.Product
@@ -11,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -35,7 +37,11 @@ data class DashboardUiState(
     val bankName: String = "",
     val accountHolderName: String = "",
     val isBankDetailsSaved: Boolean = false,
-    val isUploadingItem: Boolean = false
+    val isUploadingItem: Boolean = false,
+    // ----- Signed-in profile (read from TokenStore) -----
+    val userName: String = "Guest",
+    val userPhone: String = "",
+    val userLocation: String = ""
 )
 
 /**
@@ -45,7 +51,8 @@ data class DashboardUiState(
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val productRepository: ProductRepository,
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val tokenStore: TokenStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -54,6 +61,31 @@ class DashboardViewModel @Inject constructor(
     init {
         loadProducts()
         loadOrders()
+        loadProfile()
+    }
+
+    // ------------------------------------------------------------- Profile
+
+    /** Reads the signed-in user's name, phone and location for the Profile tab. */
+    fun loadProfile() {
+        viewModelScope.launch {
+            try {
+                val profile = tokenStore.profileFlow().first()
+                val phone = tokenStore.savedPhoneNumber()
+                val location = listOfNotNull(profile.lga, profile.state)
+                    .filter { it.isNotBlank() }
+                    .joinToString(", ")
+                _uiState.update {
+                    it.copy(
+                        userName = profile.fullName?.takeIf { name -> name.isNotBlank() } ?: "Guest",
+                        userPhone = phone.orEmpty(),
+                        userLocation = location
+                    )
+                }
+            } catch (e: Exception) {
+                // Profile info is cosmetic; browsing must never fail because of it.
+            }
+        }
     }
 
     // ---------------------------------------------------------------- Mode

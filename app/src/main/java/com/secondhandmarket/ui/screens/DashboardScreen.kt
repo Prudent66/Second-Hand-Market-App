@@ -1,192 +1,279 @@
 package com.secondhandmarket.ui.screens
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import com.secondhandmarket.data.models.Order
 import com.secondhandmarket.data.models.PaymentStatus
-import com.secondhandmarket.data.models.Product
-import com.secondhandmarket.viewmodel.DASHBOARD_CATEGORIES
+import com.secondhandmarket.ui.components.BrandGradient
+import com.secondhandmarket.ui.components.SectionHeader
+import com.secondhandmarket.viewmodel.DashboardUiState
 import com.secondhandmarket.viewmodel.DashboardViewModel
 
+private const val TAB_HOME = 0
+private const val TAB_SEARCH = 1
+private const val TAB_PROFILE = 2
+
 /**
- * Dashboard with a Shopping / Selling segmented pill below the app bar.
- *
- * - Shopping: search bar, category chips and a two-column product grid.
- * - Selling: upload item, bank (payout) details and an orders list where
- *   each order card cycles Awaiting Transfer -> Payment Received -> Delivered.
+ * Main dashboard. Home shows the marketplace or the seller hub depending on
+ * the segmented mode switch, Search is a focused search experience, and
+ * Profile shows the signed-in account. Long-pressing the app title opens the
+ * hidden admin console.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onAdminClick: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showUploadDialog by remember { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf(TAB_HOME) }
+    var showUploadDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.uiMessage) {
-        uiState.uiMessage?.let { message ->
+        val message = uiState.uiMessage
+        if (message != null) {
             snackbarHostState.showSnackbar(message)
             viewModel.clearUiMessage()
         }
     }
-
     LaunchedEffect(uiState.error) {
-        uiState.error?.let { message ->
-            snackbarHostState.showSnackbar(message)
+        val error = uiState.error
+        if (error != null) {
+            snackbarHostState.showSnackbar(error)
             viewModel.clearError()
         }
     }
 
     Scaffold(
-        topBar = { DashboardTopBar() },
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            DashboardTopBar(
+                onTitleLongPress = onAdminClick,
+                onProfileClick = { selectedTab = TAB_PROFILE }
+            )
+        },
+        bottomBar = {
+            DashboardBottomBar(
+                selectedTab = selectedTab,
+                onSelect = { tab -> selectedTab = tab }
+            )
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
-    ) { paddingValues ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(innerPadding)
         ) {
-            ModeSwitchBar(
-                isVendorMode = uiState.isVendorMode,
-                onModeChanged = viewModel::onModeChanged
-            )
-            if (uiState.isVendorMode) {
-                VendorModeContent(
-                    viewModel = viewModel,
-                    modifier = Modifier.weight(1f),
-                    onUploadClick = { showUploadDialog = true }
-                )
-            } else {
-                UserModeContent(
-                    viewModel = viewModel,
-                    modifier = Modifier.weight(1f)
-                )
+            when (selectedTab) {
+                TAB_HOME -> {
+                    ModeSwitchBar(
+                        isVendorMode = uiState.isVendorMode,
+                        onModeChanged = viewModel::onModeChanged,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                    )
+                    if (uiState.isVendorMode) {
+                        VendorContent(
+                            uiState = uiState,
+                            viewModel = viewModel,
+                            onUploadClick = { showUploadDialog = true },
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        MarketplaceContent(
+                            uiState = uiState,
+                            viewModel = viewModel,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                TAB_SEARCH -> SearchTab(uiState = uiState, viewModel = viewModel)
+                else -> ProfileTab(uiState = uiState, viewModel = viewModel)
             }
         }
+    }
 
-        if (showUploadDialog) {
-            UploadItemDialog(
-                isUploading = uiState.isUploadingItem,
-                onDismiss = { showUploadDialog = false },
-                onConfirm = { title, description, price, category ->
-                    viewModel.uploadItem(title, description, price, category)
-                    showUploadDialog = false
+    if (showUploadDialog) {
+        UploadItemDialog(
+            isUploading = uiState.isUploadingItem,
+            onDismiss = { showUploadDialog = false },
+            onConfirm = { title, description, price, category ->
+                viewModel.uploadItem(title, description, price, category)
+                showUploadDialog = false
+            }
+        )
+    }
+}
+
+/** Brand bar. Long-press the title to reveal the admin console. */
+@Composable
+private fun DashboardTopBar(
+    onTitleLongPress: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(BrandGradient.horizontal(), RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "SH",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .pointerInput(Unit) {
+                    detectTapGestures(onLongPress = { onTitleLongPress() })
                 }
+        ) {
+            Text(
+                text = "Second Hand Market",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "Premium pre-owned marketplace",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .clickable { onProfileClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "Profile",
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DashboardTopBar() {
-    TopAppBar(
-        title = {
-            Text(
-                text = "Second Hand Market",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-        }
-    )
+private fun DashboardBottomBar(selectedTab: Int, onSelect: (Int) -> Unit) {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp
+    ) {
+        NavigationBarItem(
+            selected = selectedTab == TAB_HOME,
+            onClick = { onSelect(TAB_HOME) },
+            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+            label = { Text(text = "Home", fontSize = 11.sp) }
+        )
+        NavigationBarItem(
+            selected = selectedTab == TAB_SEARCH,
+            onClick = { onSelect(TAB_SEARCH) },
+            icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+            label = { Text(text = "Search", fontSize = 11.sp) }
+        )
+        NavigationBarItem(
+            selected = selectedTab == TAB_PROFILE,
+            onClick = { onSelect(TAB_PROFILE) },
+            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+            label = { Text(text = "Profile", fontSize = 11.sp) }
+        )
+    }
 }
 
-/**
- * Segmented "Shopping / Selling" pill shown under the top bar. Replaces the
- * cramped mode switch that used to live in the app bar.
- */
+/** Segmented Shopping / Selling switch with an animated pill. */
 @Composable
 private fun ModeSwitchBar(
     isVendorMode: Boolean,
-    onModeChanged: (Boolean) -> Unit
+    onModeChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier
+    Row(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(modifier = Modifier.padding(4.dp)) {
-            ModeOption(
-                label = "Shopping",
-                selected = !isVendorMode,
-                onClick = { onModeChanged(false) },
-                modifier = Modifier.weight(1f)
-            )
-            ModeOption(
-                label = "Selling",
-                selected = isVendorMode,
-                onClick = { onModeChanged(true) },
-                modifier = Modifier.weight(1f)
-            )
-        }
+        ModeOption(
+            label = "Shopping",
+            selected = !isVendorMode,
+            modifier = Modifier.weight(1f),
+            onClick = { onModeChanged(false) }
+        )
+        ModeOption(
+            label = "Selling",
+            selected = isVendorMode,
+            modifier = Modifier.weight(1f),
+            onClick = { onModeChanged(true) }
+        )
     }
 }
 
@@ -194,543 +281,241 @@ private fun ModeSwitchBar(
 private fun ModeOption(
     label: String,
     selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
+    val background by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            Color.Transparent
+        },
+        label = "modeBackground"
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "modeContent"
+    )
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(
-                if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    Color.Transparent
-                }
-            )
-            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(background)
+            .clickable { onClick() }
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
-            fontSize = 14.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = content
         )
     }
 }
 
-// ---------------------------------------------------------------- User Mode
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UserModeContent(
-    viewModel: DashboardViewModel,
-    modifier: Modifier = Modifier
-) {
-    val uiState by viewModel.uiState.collectAsState()
-
-    val filteredProducts = remember(uiState.products, uiState.searchQuery, uiState.selectedCategory) {
-        uiState.products.filter { product ->
-            val matchesCategory = uiState.selectedCategory == "All" ||
-                product.category.equals(uiState.selectedCategory, ignoreCase = true)
-            val matchesQuery = uiState.searchQuery.isBlank() ||
-                product.title.contains(uiState.searchQuery, ignoreCase = true) ||
-                product.description.contains(uiState.searchQuery, ignoreCase = true)
-            matchesCategory && matchesQuery
-        }
+private fun SearchTab(uiState: DashboardUiState, viewModel: DashboardViewModel) {
+    val products = remember(uiState.products, uiState.searchQuery, uiState.selectedCategory) {
+        filterProducts(uiState.products, uiState.searchQuery, uiState.selectedCategory)
     }
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Spacer(modifier = Modifier.height(10.dp))
+            SectionHeader(
+                title = "Search",
+                subtitle = "Find exactly what you need"
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            MarketSearchField(
+                query = uiState.searchQuery,
+                onQueryChanged = viewModel::onSearchQueryChanged,
+                autofocus = true
+            )
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+        CategoryChips(
+            selected = uiState.selectedCategory,
+            onSelect = viewModel::onCategorySelected
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        ProductGrid(products = products, modifier = Modifier.weight(1f))
+    }
+}
 
+@Composable
+private fun ProfileTab(uiState: DashboardUiState, viewModel: DashboardViewModel) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Search bar
-        OutlinedTextField(
-            value = uiState.searchQuery,
-            onValueChange = viewModel::onSearchQueryChanged,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search laptops, phones, furniture...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-            singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+        ProfileHeaderCard(uiState = uiState)
+        ProfileInfoCard(uiState = uiState)
+        SectionHeader(
+            title = "Seller mode",
+            subtitle = "Manage listings, orders and payouts"
         )
-
+        ModeSwitchBar(
+            isVendorMode = uiState.isVendorMode,
+            onModeChanged = viewModel::onModeChanged
+        )
+        ProfileStatsRow(uiState = uiState)
         Spacer(modifier = Modifier.height(12.dp))
-
-        // Category chips
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(DASHBOARD_CATEGORIES) { category ->
-                FilterChip(
-                    selected = uiState.selectedCategory == category,
-                    onClick = { viewModel.onCategorySelected(category) },
-                    label = { Text(category) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (filteredProducts.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "No items match your search yet.",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-        } else {
-            // Two fixed columns so narrow devices (~240dp wide) still get a grid.
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(filteredProducts, key = { it.id }) { product ->
-                    ProductCard(product = product)
-                }
-            }
-        }
     }
 }
 
-/**
- * Per-category gradients used as artwork when a product has no photo (or the
- * photo fails to load) - looks intentional instead of a flat colored block.
- */
-private val CategoryGradients = mapOf(
-    "electronics" to listOf(Color(0xFF123456), Color(0xFF2C6BAE)),
-    "phones" to listOf(Color(0xFF0E3B2E), Color(0xFF2E8B62)),
-    "fashion" to listOf(Color(0xFF3B2145), Color(0xFF7C4591)),
-    "furniture" to listOf(Color(0xFF3E2C17), Color(0xFF8A6430))
-)
-private val FallbackGradient = listOf(Color(0xFF1B2735), Color(0xFF3A506B))
-
 @Composable
-private fun CategoryArt(category: String, modifier: Modifier = Modifier) {
-    val colors = CategoryGradients[category.lowercase()] ?: FallbackGradient
+private fun ProfileHeaderCard(uiState: DashboardUiState) {
     Box(
-        modifier = modifier.background(Brush.linearGradient(colors)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = category.take(1).uppercase(),
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.25f)
-        )
-    }
-}
-
-@Composable
-private fun ProductCard(product: Product) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(4f / 3f)
-            ) {
-                // Category art sits behind the photo and shows through when
-                // there is no image (or loading fails).
-                CategoryArt(category = product.category, modifier = Modifier.fillMaxSize())
-                AsyncImage(
-                    model = product.imageUrl.ifBlank { null },
-                    contentDescription = product.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    error = ColorPainter(Color.Transparent)
-                )
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = Color.Black.copy(alpha = 0.55f),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                ) {
-                    Text(
-                        text = product.condition,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-            }
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-                Text(
-                    text = product.title,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "₦%,d".format(product.price.toLong()),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-    }
-}
-
-// -------------------------------------------------------------- Vendor Mode
-
-@Composable
-private fun VendorModeContent(
-    viewModel: DashboardViewModel,
-    modifier: Modifier = Modifier,
-    onUploadClick: () -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsState()
-
-    Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(BrandGradient.horizontal())
+            .padding(20.dp)
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Upload Item button
-        Button(
-            onClick = onUploadClick,
-            enabled = !uiState.isUploadingItem,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Upload Item", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Bank (payout) details
-        BankDetailsCard(
-            accountNumber = uiState.bankAccountNumber,
-            bankName = uiState.bankName,
-            accountHolderName = uiState.accountHolderName,
-            isSaved = uiState.isBankDetailsSaved,
-            onAccountNumberChanged = viewModel::onBankAccountNumberChanged,
-            onBankNameChanged = viewModel::onBankNameChanged,
-            onAccountHolderChanged = viewModel::onAccountHolderNameChanged,
-            onSave = viewModel::saveBankDetails
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Orders",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (uiState.orders.isEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                    .size(58.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No orders yet. They will appear here when buyers check out.",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    text = uiState.userName.trim().take(1).uppercase().ifEmpty { "S" },
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                items(uiState.orders, key = { it.id }) { order ->
-                    OrderCard(
-                        order = order,
-                        onAdvanceStatus = { viewModel.advanceOrderStatus(order.id) }
-                    )
-                }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column {
+                Text(
+                    text = uiState.userName,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (uiState.userPhone.isBlank()) "Add a phone number" else uiState.userPhone,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+                Text(
+                    text = if (uiState.userLocation.isBlank()) "Location not set" else uiState.userLocation,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
 }
 
 @Composable
-private fun BankDetailsCard(
-    accountNumber: String,
-    bankName: String,
-    accountHolderName: String,
-    isSaved: Boolean,
-    onAccountNumberChanged: (String) -> Unit,
-    onBankNameChanged: (String) -> Unit,
-    onAccountHolderChanged: (String) -> Unit,
-    onSave: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+private fun ProfileInfoCard(uiState: DashboardUiState) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        val listings = uiState.products.count { it.vendorId == DashboardViewModel.VENDOR_ID }
+        Column(modifier = Modifier.padding(16.dp)) {
+            ProfileInfoRow(
+                label = "Account type",
+                value = if (uiState.isVendorMode) "Seller" else "Buyer"
+            )
+            ProfileInfoRow(label = "Listings", value = "$listings")
+            ProfileInfoRow(label = "Active orders", value = "${uiState.orders.size}")
+        }
+    }
+}
+
+@Composable
+private fun ProfileInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
         )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun ProfileStatsRow(uiState: DashboardUiState) {
+    val delivered = uiState.orders.count { order ->
+        order.paymentStatus == PaymentStatus.DELIVERED
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        ProfileStatCard(
+            value = uiState.orders.size.toString(),
+            label = "Orders",
+            modifier = Modifier.weight(1f)
+        )
+        ProfileStatCard(
+            value = delivered.toString(),
+            label = "Completed",
+            modifier = Modifier.weight(1f)
+        )
+        ProfileStatCard(
+            value = if (uiState.isVendorMode) "On" else "Off",
+            label = "Selling",
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun ProfileStatCard(value: String, label: String, modifier: Modifier = Modifier) {
+    ElevatedCard(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "Payout Account", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(
-                text = "Payments from completed orders are transferred to this account.",
-                fontSize = 12.sp,
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            OutlinedTextField(
-                value = accountNumber,
-                onValueChange = onAccountNumberChanged,
-                label = { Text("Vendor Account Number") },
-                placeholder = { Text("10-digit NUBAN") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = bankName,
-                onValueChange = onBankNameChanged,
-                label = { Text("Bank Name") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = accountHolderName,
-                onValueChange = onAccountHolderChanged,
-                label = { Text("Account Holder Name") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Button(
-                onClick = onSave,
-                enabled = accountNumber.length == 10 && bankName.isNotBlank() &&
-                    accountHolderName.isNotBlank(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = if (isSaved) "Update Bank Details" else "Save Bank Details",
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
         }
     }
-}
-
-@Composable
-private fun OrderCard(
-    order: Order,
-    onAdvanceStatus: () -> Unit
-) {
-    val nextStatus = DashboardViewModel.nextPaymentStatus(order.paymentStatus)
-
-    Card(shape = RoundedCornerShape(12.dp)) {
-        Column(modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = DashboardViewModel.orderDisplayId(order.id),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                PaymentStatusBadge(status = order.paymentStatus)
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = order.productTitle,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-            )
-            Text(
-                text = "₦%,d · %s · %s".format(
-                    order.price.toLong(),
-                    order.customerName,
-                    order.paymentMethod
-                ),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Payment status action - colored by the status being moved TO.
-            if (nextStatus == null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF4CAF50)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Order completed",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF4CAF50)
-                    )
-                }
-            } else {
-                Button(
-                    onClick = onAdvanceStatus,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = when (nextStatus) {
-                            PaymentStatus.PAYMENT_RECEIVED -> Color(0xFF2E7D32)
-                            else -> Color(0xFF1565C0)
-                        }
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Mark as ${DashboardViewModel.statusLabel(nextStatus)}",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PaymentStatusBadge(status: PaymentStatus) {
-    val (label, color) = when (status) {
-        PaymentStatus.AWAITING_PAYMENT -> "Awaiting Transfer" to Color(0xFFFFA726)
-        PaymentStatus.PAYMENT_RECEIVED -> "Payment Received" to Color(0xFF4CAF50)
-        PaymentStatus.DELIVERED -> "Delivered" to Color(0xFF2196F3)
-    }
-    Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = color.copy(alpha = 0.15f)
-    ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = color,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
-    }
-}
-
-// ------------------------------------------------------------ Upload dialog
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
-private fun UploadItemDialog(
-    isUploading: Boolean,
-    onDismiss: () -> Unit,
-    onConfirm: (title: String, description: String, price: Double, category: String) -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var priceText by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Electronics") }
-
-    val price = priceText.toDoubleOrNull() ?: 0.0
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = "List New Item") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Item Title") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description") }
-                )
-                OutlinedTextField(
-                    value = priceText,
-                    onValueChange = { priceText = it.filter { c -> c.isDigit() } },
-                    label = { Text("Price (₦)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    DASHBOARD_CATEGORIES.filter { it != "All" }.forEach { category ->
-                        FilterChip(
-                            selected = selectedCategory == category,
-                            onClick = { selectedCategory = category },
-                            label = { Text(category) }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(title, description, price, selectedCategory) },
-                enabled = !isUploading && title.isNotBlank() && price > 0.0
-            ) {
-                if (isUploading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.width(20.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Upload")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }

@@ -13,37 +13,45 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryBlueLight,
-    onPrimary = Color(0xFF00295D),
-    primaryContainer = Color(0xFF0D4478),
-    onPrimaryContainer = Color(0xFFBDD9FF),
-    secondary = SecondaryYellow,
-    onSecondary = Color(0xFF3B2E00),
-    background = DarkBackground,
-    onBackground = Color(0xFFE4E9F0),
-    surface = DarkSurface,
-    onSurface = Color(0xFFE4E9F0),
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = Color(0xFFA6B2C1),
-    outline = DarkOutline,
+    primary = AquaSoft,
+    onPrimary = Color(0xFF00332E),
+    primaryContainer = Color(0xFF0B4F5E),
+    onPrimaryContainer = Color(0xFFBDF3EE),
+    secondary = Color(0xFF38BDF8),
+    onSecondary = Color(0xFF002733),
+    secondaryContainer = Color(0xFF0B3A4A),
+    onSecondaryContainer = Color(0xFFC4E9F7),
+    tertiary = Color(0xFF67E8F9),
+    onTertiary = Color(0xFF00252C),
+    background = NightBackground,
+    onBackground = NightText,
+    surface = NightSurface,
+    onSurface = NightText,
+    surfaceVariant = NightSurfaceVariant,
+    onSurfaceVariant = NightTextSecondary,
+    outline = NightOutline,
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF5C1108)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryBlue,
+    primary = OceanBlue,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD3E5FF),
-    onPrimaryContainer = Color(0xFF00295D),
-    secondary = Color(0xFFB98A00),
+    primaryContainer = Color(0xFFD3ECF1),
+    onPrimaryContainer = Color(0xFF06303F),
+    secondary = TealAccent,
     onSecondary = Color.White,
-    background = LightBackground,
-    onBackground = Color(0xFF17202B),
-    surface = LightSurface,
-    onSurface = Color(0xFF17202B),
-    surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = Color(0xFF5A6675),
-    outline = LightOutline,
+    secondaryContainer = Color(0xFFCDF5F0),
+    onSecondaryContainer = Color(0xFF00201C),
+    tertiary = CyanAccent,
+    onTertiary = Color.White,
+    background = CloudBackground,
+    onBackground = InkPrimary,
+    surface = CloudSurface,
+    onSurface = InkPrimary,
+    surfaceVariant = CloudSurfaceVariant,
+    onSurfaceVariant = InkSecondary,
+    outline = CloudOutline,
     error = Color(0xFFB3261E),
     onError = Color.White
 )
@@ -64,7 +72,10 @@ fun SecondHandMarketTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.navigationBarColor = colorScheme.surface.toArgb()
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
