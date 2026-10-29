@@ -1,8 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const {
+  sendOtpSms,
+  isMockMode,
+  SmsNotConfiguredError,
+} = require('../services/smsService');
 
 // Mock OTP store (In production, use Twilio or Firebase Phone Auth).
-// phoneNumber -> { code, expiresAt }
+// phoneNumber -> { code, expiresAt, attempts }
 const otpStore = new Map();
 
 // In-memory mock user store used as a fallback when no Postgres instance is
@@ -11,10 +16,11 @@ const otpStore = new Map();
 const mockUsers = new Map(); // phoneNumber -> user object
 
 const OTP_TTL_MS = 5 * 60 * 1000;
+const MAX_OTP_ATTEMPTS = 5;
 const JWT_EXPIRES_IN = '7d';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-if (!process.env.JWT_SECRET) {
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'production') {
   console.warn('[auth] JWT_SECRET is not set - using a development fallback secret.');
 }
 
@@ -95,18 +101,35 @@ exports.register = async (req, res) => {
   otpStore.set(phoneNumber, {
     code: otp,
     expiresAt: Date.now() + OTP_TTL_MS,
+    attempts: 0,
   });
 
-  console.log(`[MOCK SMS] Sending OTP ${otp} to ${phoneNumber}`);
+  try {
+    await sendOtpSms(phoneNumber, otp);
+  } catch (error) {
+    // Never leave behind a code that could not be delivered.
+    otpStore.delete(phoneNumber);
+    if (error instanceof SmsNotConfiguredError) {
+      console.error(
+        '[auth] SMS provider is not configured - refusing to issue an undeliverable OTP.'
+      );
+      return res.status(503).json({
+        error: 'SMS delivery is not configured on this server yet.',
+      });
+    }
+    console.error('[auth] Failed to send OTP SMS:', error.message);
+    return res.status(502).json({
+      error: 'Could not send the verification SMS. Please try again.',
+    });
+  }
 
-  // In a real app the OTP would be dispatched via Twilio/Firebase here.
-  const includeMockOtp = process.env.NODE_ENV !== 'production';
   const payload = {
     success: true,
     message: 'OTP sent successfully',
   };
-  if (includeMockOtp) {
-    payload.mockOtp = otp; // REMOVE THIS IN PRODUCTION
+  // Echo the code back only in mock mode (development or ALLOW_MOCK_OTP=true).
+  if (isMockMode()) {
+    payload.mockOtp = otp;
   }
   return res.json(payload);
 };
@@ -138,6 +161,13 @@ exports.verifyOtp = async (req, res) => {
   }
 
   if (stored.code !== otp) {
+    stored.attempts = (stored.attempts || 0) + 1;
+    if (stored.attempts >= MAX_OTP_ATTEMPTS) {
+      otpStore.delete(phoneNumber);
+      return res.status(429).json({
+        error: 'Too many incorrect attempts. Please request a new code.',
+      });
+    }
     return res.status(400).json({ error: 'Invalid OTP' });
   }
 

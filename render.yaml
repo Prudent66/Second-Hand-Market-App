@@ -1,0 +1,43 @@
+# Render Blueprint for the Second Hand Market API.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repository.
+# Secrets marked `sync: false` are entered in the dashboard after the first
+# deploy (never commit real credentials).
+services:
+  - type: web
+    name: second-hand-market-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render generates a strong secret automatically.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # Tighten this once a web frontend exists (comma-separated origins).
+      - key: CORS_ORIGIN
+        value: "*"
+
+      # Remove or set to "false" once Twilio is configured.
+      - key: ALLOW_MOCK_OTP
+        value: "true"
+
+      # Set in the dashboard. Leave empty to run without a database
+      # (auth works via the in-memory fallback; catalog/orders need Postgres).
+      - key: DATABASE_URL
+        sync: false
+
+      # Twilio SMS credentials - set in the dashboard for real OTP delivery.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false

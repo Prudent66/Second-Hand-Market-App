@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Production traffic must use HTTPS. Cleartext is allowed only for local
+         development hosts: the emulator loopback alias (10.0.2.2) and localhost.
+         To test against a backend on your LAN, add its IP to a domain-config. -->
+    <base-config cleartextTrafficPermitted="false" />
+
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain> <!-- Emulator access to host machine -->
+        <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
 </network-security-config>

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,6 +8,37 @@ plugins {
     // kapt ships inside the kotlin-gradle-plugin jar; version comes from the
     // root project's org.jetbrains.kotlin.android declaration.
     id("org.jetbrains.kotlin.kapt")
+}
+
+// ---------------------------------------------------------------------------
+// Backend API base URL, baked into BuildConfig.API_BASE_URL.
+//
+// Resolution order (first non-blank wins):
+//   1. -PAPI_BASE_URL=https://...        (command line / CI)
+//   2. API_BASE_URL=... in local.properties  (developer-local, gitignored)
+//   3. API_BASE_URL=... in gradle.properties (committed default)
+//   4. Fallback below
+// A trailing slash is required by Retrofit and added automatically.
+// ---------------------------------------------------------------------------
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val resolvedApiBaseUrl = listOf(
+    gradle.startParameter.projectProperties["API_BASE_URL"],
+    localProperties.getProperty("API_BASE_URL"),
+    providers.gradleProperty("API_BASE_URL").orNull,
+)
+    .firstOrNull { !it.isNullOrBlank() }
+    ?.trim()
+    ?.replace("\"", "")
+    ?: "https://second-hand-market-api.onrender.com/"
+val apiBaseUrl = if (resolvedApiBaseUrl.endsWith("/")) {
+    resolvedApiBaseUrl
+} else {
+    "$resolvedApiBaseUrl/"
 }
 
 android {
@@ -23,7 +56,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        
+
+        // Injected from the resolution logic above (see DEPLOYMENT.md).
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+
         // For Firebase Phone Auth
         manifestPlaceholders["siteKey"] = ""
         manifestPlaceholders["recaptchaSecret"] = ""
@@ -38,6 +74,7 @@ android {
     
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     
     composeOptions {

@@ -1,5 +1,6 @@
 package com.secondhandmarket.di
 
+import com.secondhandmarket.BuildConfig
 import com.secondhandmarket.data.network.ApiService
 import dagger.Module
 import dagger.Provides
@@ -16,14 +17,23 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    /** Emulator loopback alias for a locally running backend (see network_security_config.xml). */
-    private const val BASE_URL = "http://10.0.2.2:5000/"
+    /**
+     * Configured in `app/build.gradle.kts` from the API_BASE_URL Gradle
+     * property (gradle.properties, local.properties or -PAPI_BASE_URL).
+     * See DEPLOYMENT.md for how to point the app at a deployed backend.
+     */
+    private val BASE_URL: String = BuildConfig.API_BASE_URL
 
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            // Never log bodies (OTP codes, JWTs) in release builds.
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)

@@ -1,14 +1,18 @@
 package com.secondhandmarket.data.repository
 
+import com.secondhandmarket.BuildConfig
 import com.secondhandmarket.data.local.TokenStore
 import com.secondhandmarket.data.network.ApiService
 import com.secondhandmarket.data.network.ProfileUpdateRequest
 import com.secondhandmarket.data.network.RegisterRequest
 import com.secondhandmarket.data.network.VerifyOtpRequest
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import retrofit2.Response
 
 /** Result of POST /api/auth/register */
 sealed interface RegisterResult {
@@ -51,12 +55,20 @@ class AuthRepository @Inject constructor(
                 tokenStore.clearDemoOtp()
                 RegisterResult.Success(mockOtp = body.mockOtp, isMock = false)
             } else {
-                RegisterResult.Failure(body?.message ?: "Failed to send OTP (${response.code()})")
+                RegisterResult.Failure(
+                    errorMessage(response, "Failed to send OTP (${response.code()})")
+                )
             }
         } catch (e: IOException) {
-            // Backend unreachable - demo fallback so the flow can continue.
-            tokenStore.saveDemoOtp(MOCK_OTP)
-            RegisterResult.Success(mockOtp = MOCK_OTP, isMock = true)
+            if (BuildConfig.DEBUG) {
+                // Debug builds only: keep the UI flow usable without a server.
+                tokenStore.saveDemoOtp(MOCK_OTP)
+                RegisterResult.Success(mockOtp = MOCK_OTP, isMock = true)
+            } else {
+                RegisterResult.Failure(
+                    "Cannot reach the server. Check your connection and try again."
+                )
+            }
         } catch (e: Exception) {
             RegisterResult.Failure(e.message ?: "Unknown error occurred")
         }
@@ -74,18 +86,22 @@ class AuthRepository @Inject constructor(
                 tokenStore.clearDemoOtp()
                 VerifyResult.Success(token = token, isMock = false)
             } else {
-                VerifyResult.Failure("Invalid OTP code")
+                VerifyResult.Failure(errorMessage(response, "Invalid OTP code"))
             }
         } catch (e: IOException) {
-            if (otpCode == MOCK_OTP) {
-                // Demo fallback: accept the well-known mock OTP without a server.
+            if (BuildConfig.DEBUG && otpCode == MOCK_OTP) {
+                // Debug builds only: accept the well-known mock OTP offline.
                 val mockToken = "$MOCK_TOKEN_PREFIX${UUID.randomUUID()}"
                 tokenStore.saveAuth(token = mockToken, phoneNumber = phoneNumber)
                 tokenStore.clearDemoOtp()
                 VerifyResult.Success(token = mockToken, isMock = true)
             } else {
                 VerifyResult.Failure(
-                    "Cannot reach the server. Demo mode code is $MOCK_OTP."
+                    if (BuildConfig.DEBUG) {
+                        "Cannot reach the server. Demo mode code is $MOCK_OTP."
+                    } else {
+                        "Cannot reach the server. Check your connection and try again."
+                    }
                 )
             }
         } catch (e: Exception) {
@@ -122,15 +138,43 @@ class AuthRepository @Inject constructor(
                 tokenStore.saveProfile(fullName, state, lga, address)
                 ProfileResult.Success(isMock = false)
             } else {
-                ProfileResult.Failure("Failed to save profile (${response.code()})")
+                ProfileResult.Failure(
+                    errorMessage(response, "Failed to save profile (${response.code()})")
+                )
             }
         } catch (e: IOException) {
-            // Backend unreachable - keep the demo flow alive by saving locally.
-            tokenStore.saveProfile(fullName, state, lga, address)
-            ProfileResult.Success(isMock = true)
+            if (BuildConfig.DEBUG) {
+                // Debug builds only: keep the demo flow alive by saving locally.
+                tokenStore.saveProfile(fullName, state, lga, address)
+                ProfileResult.Success(isMock = true)
+            } else {
+                ProfileResult.Failure(
+                    "Cannot reach the server. Check your connection and try again."
+                )
+            }
         } catch (e: Exception) {
             ProfileResult.Failure(e.message ?: "Unknown error occurred")
         }
+    }
+
+    /**
+     * Reads the `error`/`message` field from a failed response body so the UI
+     * can show the server's actual reason ("SMS delivery is not configured...",
+     * "OTP expired...") instead of a generic status code.
+     */
+    private fun errorMessage(response: Response<*>, fallback: String): String {
+        val raw = runCatching { response.errorBody()?.string() }.getOrNull()
+        if (raw.isNullOrBlank()) {
+            return fallback
+        }
+        val json = runCatching {
+            Gson().fromJson(raw, JsonObject::class.java)
+        }.getOrNull() ?: return fallback
+        val error = json.get("error")?.takeIf { it.isJsonPrimitive }?.asString
+        val message = json.get("message")?.takeIf { it.isJsonPrimitive }?.asString
+        return error?.takeIf { it.isNotBlank() }
+            ?: message?.takeIf { it.isNotBlank() }
+            ?: fallback
     }
 
     companion object {
