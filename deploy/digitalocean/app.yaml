@@ -1,0 +1,86 @@
+# DigitalOcean App Platform spec - Second Hand Market API
+#
+# Deploy (first time):
+#   1. Replace the CHANGE_ME secret below:
+#        openssl rand -hex 32
+#   2. doctl auth init
+#   3. doctl apps create --spec deploy/digitalocean/app.yaml --wait
+#
+# Update an existing app after editing this file:
+#   doctl apps update <APP_ID> --spec deploy/digitalocean/app.yaml --wait
+#
+# Cost: apps-s-1vcpu-0.5gb is $5/month, billed against the GitHub Student
+# Developer Pack credit ($200). The container runs 24/7, so the API never
+# sleeps. Database: add a free Neon Postgres as DATABASE_URL (see
+# DEPLOYMENT.md section 4) - keeping it off DigitalOcean stretches the credit.
+#
+# The API refuses to boot in production with a missing/weak JWT_SECRET, so a
+# forgotten placeholder fails loudly in the deploy logs instead of shipping an
+# insecure token signer.
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+
+name: second-hand-market-api
+region: lon
+
+services:
+  - name: api
+    github:
+      repo: Prudent66/Second-Hand-Market-App
+      branch: main
+      deploy_on_push: true
+    source_dir: backend
+    dockerfile_path: Dockerfile
+    http_port: 5000
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 20
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+      - key: PORT
+        scope: RUN_TIME
+        value: "5000"
+      # REQUIRED: replace before the first deploy. 32+ random hex chars.
+      # Leaving CHANGE_ME here makes the app exit on boot by design.
+      - key: JWT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: CHANGE_ME
+      # Recommended: paste your Neon (or DigitalOcean) PostgreSQL URL here.
+      # Empty = in-memory auth store; accounts are lost on every restart.
+      # - key: DATABASE_URL
+      #   scope: RUN_TIME
+      #   type: SECRET
+      #   value: postgresql://user:pass@host/db?sslmode=require
+      # Keep CORS closed for the native app; "*" only matters for browser clients.
+      - key: CORS_ORIGIN
+        scope: RUN_TIME
+        value: "*"
+      # TESTING ONLY. Returns the OTP in the register response instead of
+      # sending an SMS, so anyone can sign in as any phone number.
+      # Set to "false" (or delete) once Twilio is configured.
+      - key: ALLOW_MOCK_OTP
+        scope: RUN_TIME
+        value: "true"
+      # Twilio (real SMS). Add all three to switch off mock OTP.
+      # - key: TWILIO_ACCOUNT_SID
+      #   scope: RUN_TIME
+      #   type: SECRET
+      #   value: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      # - key: TWILIO_AUTH_TOKEN
+      #   scope: RUN_TIME
+      #   type: SECRET
+      #   value: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      # - key: TWILIO_PHONE_NUMBER
+      #   scope: RUN_TIME
+      #   value: "+12025550123"
