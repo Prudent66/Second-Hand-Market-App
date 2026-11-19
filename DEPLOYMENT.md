@@ -74,6 +74,9 @@ The repository contains a ready app spec at `deploy/digitalocean/app.yaml`.
 
 ### 2.2 Deploy the committed app spec
 
+> This subsection needs a terminal (laptop/desktop). On a phone, skip to
+> section 2.4 and use the dashboard instead — the result is the same app.
+
 1. Create an API token: DigitalOcean Control Panel → **API** → **Tokens** →
    **Generate New Token** with read + write scope. Copy it.
 2. Install `doctl` using one of:
@@ -138,12 +141,27 @@ doctl apps create-deployment <APP_ID> --wait
   Environment Variables**, mark secrets as **Encrypted**, then **Save** (this
   redeploys the app).
 
-### 2.4 Dashboard-only alternative
+### 2.4 Dashboard-only alternative (no terminal, phone-friendly)
 
-Apps → **Create App** → GitHub → authorize → pick the repo and `main` → edit
-the service: **Source Directory** `backend`, **Dockerfile** build, **HTTP
-Port** `5000`, instance size **Basic ($5)**, health check `/health`, region
-London or Frankfurt. Add the variables from section 1, then **Create**.
+If you cannot run `doctl` (for example, you only have the phone), create the
+same app from the DigitalOcean dashboard:
+
+1. **Apps → Create App → GitHub**, authorize DigitalOcean, pick
+   `Prudent66/Second-Hand-Market-App` and branch `main`.
+2. When the scan finds nothing at the repo root, edit the service:
+   **Source Directory** `backend`, **Dockerfile** build, **HTTP Port** `5000`,
+   resource type **Web Service**.
+3. Set the plan to **Basic ($5/month)**, region **London** or **Frankfurt**,
+   health check path `/health`.
+4. Add environment variables before creating:
+   `NODE_ENV=production`, `PORT=5000`,
+   `JWT_SECRET=<40+ random characters>` (mark **Encrypt**),
+   `ALLOW_MOCK_OTP=true`, `CORS_ORIGIN=*`.
+5. **Create App**, wait for the build, then open the app overview and copy the
+   `https://...ondigitalocean.app` URL.
+
+The dashboard stores the secret encrypted and the app redeploys automatically
+on every push to `main`. The committed spec is only needed for CLI users.
 
 ### Cost notes
 
