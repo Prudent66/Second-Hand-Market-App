@@ -86,34 +86,39 @@ The repository contains a ready app spec at `deploy/digitalocean/app.yaml`.
    doctl auth init          # paste the token
    doctl account get
    ```
-4. Replace the JWT placeholder **before** creating the app:
+4. Create the app with a generated JWT secret **without editing the tracked
+   file** (so the secret never reaches git):
    ```bash
-   openssl rand -hex 32
-   # paste the output over CHANGE_ME in deploy/digitalocean/app.yaml
+   SECRET="$(openssl rand -hex 32)"
+   sed "s/CHANGE_ME/$SECRET/" deploy/digitalocean/app.yaml > /tmp/shm-app.yaml
+   doctl apps create --spec /tmp/shm-app.yaml --wait
+   rm /tmp/shm-app.yaml
    ```
    The API deliberately refuses to boot with `CHANGE_ME`, so a skipped step
    appears as a clear deploy-log error instead of an insecure token signer.
-5. Create the app:
-   ```bash
-   doctl apps create --spec deploy/digitalocean/app.yaml --wait
-   ```
    The first attempt may stop because DigitalOcean's GitHub app is not
    installed. Open the printed link, grant access to
    `Prudent66/Second-Hand-Market-App`, then run the command again.
-6. Copy the public URL:
+5. Copy the public URL:
    ```bash
    doctl apps list
    doctl apps spec get <APP_ID> | grep -A3 domains
    ```
    It looks like `https://second-hand-market-api-abc12.ondigitalocean.app`.
 
-After editing the spec later:
+After the first deploy, change environment variables in the dashboard or in a
+local copy of the live spec — **not** in the tracked file:
 
 ```bash
-doctl apps update <APP_ID> --spec deploy/digitalocean/app.yaml --wait
+doctl apps spec get <APP_ID> > /tmp/shm-app-live.yaml
+# edit /tmp/shm-app-live.yaml, then:
+doctl apps update <APP_ID> --spec /tmp/shm-app-live.yaml --wait
 ```
 
-To deploy without changing the spec (e.g. after editing env vars in the UI):
+Re-applying `deploy/digitalocean/app.yaml` directly would reset `JWT_SECRET` to
+the `CHANGE_ME` placeholder and the API would refuse to boot.
+
+To deploy without any spec change (e.g. after editing env vars in the UI):
 
 ```bash
 doctl apps create-deployment <APP_ID> --wait

@@ -1,13 +1,19 @@
 # DigitalOcean App Platform spec - Second Hand Market API
 #
 # Deploy (first time):
-#   1. Replace the CHANGE_ME secret below:
-#        openssl rand -hex 32
-#   2. doctl auth init
-#   3. doctl apps create --spec deploy/digitalocean/app.yaml --wait
+#   doctl auth init
+#   SECRET="$(openssl rand -hex 32)"
+#   sed "s/CHANGE_ME/$SECRET/" deploy/digitalocean/app.yaml > /tmp/shm-app.yaml
+#   doctl apps create --spec /tmp/shm-app.yaml --wait
+#   rm /tmp/shm-app.yaml
 #
-# Update an existing app after editing this file:
-#   doctl apps update <APP_ID> --spec deploy/digitalocean/app.yaml --wait
+# Never commit a real secret into this file. After the first deploy, change
+# env vars in the dashboard (or in a local copy of the live spec), not here.
+#
+# Fetch the live spec before updating it, otherwise this file's CHANGE_ME
+# placeholder would be written back and the API would refuse to boot:
+#   doctl apps spec get <APP_ID> > /tmp/shm-app-live.yaml
+#   doctl apps update <APP_ID> --spec /tmp/shm-app-live.yaml --wait
 #
 # Cost: apps-s-1vcpu-0.5gb is $5/month, billed against the GitHub Student
 # Developer Pack credit ($200). The container runs 24/7, so the API never
